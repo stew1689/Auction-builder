@@ -1,0 +1,11 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {analyze,defaults,examples,validateLot} from '../public/model.js';
+test('acquisition includes premium, tax on premium, transport and repair',()=>{const a=analyze(examples[0],defaults);assert.ok(Math.abs(a.acquisition-(175*1.15*1.10+90))<1e-8);});
+test('maximum bid preserves target margin',()=>{const l=examples[0],a=analyze(l,defaults);const atLimit=analyze({...l,bid:a.maxBid},defaults);assert.ok(Math.abs(atLimit.channel.margin-30)<1e-8);});
+test('local pickup is preferred within ten percent of best net proceeds',()=>{const l={...examples[1],local:460,shipped:600,shipping:30};assert.equal(analyze(l,defaults).channel.name,'Local pickup');assert.equal(analyze({...l,local:300},defaults).channel.name,'Marketplace shipping');});
+test('shipping channel deducts selling fee and postage',()=>{const a=analyze(examples[4],defaults);const ebay=a.channels.find(c=>c.name==='eBay');assert.equal(ebay.net,450*.86-45);});
+test('budget includes full acquisition cost',()=>assert.equal(analyze(examples[5],defaults).withinBudget,false));
+test('recommended bid cannot exceed total investment budget',()=>{const s={...defaults,budget:500},l=examples[5],a=analyze(l,s);assert.ok(analyze({...l,bid:a.maxBid},s).acquisition<=500.000001);});
+test('unsafe URLs and invalid amounts are rejected',()=>{assert.throws(()=>validateLot({...examples[0],url:'javascript:alert(1)'}));assert.throws(()=>validateLot({...examples[0],bid:-2}));assert.throws(()=>validateLot({...examples[0],bid:NaN}));});
+test('no comps means unverified evidence',()=>assert.equal(analyze(examples[0],defaults).evidence,'Unverified'));

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: auction-builder
+    runtime: node
+    branch: render-deploy
+    plan: free
+    buildCommand: npm ci --ignore-scripts --no-audit --no-fund
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: false
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
