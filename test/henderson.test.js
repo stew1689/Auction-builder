@@ -27,7 +27,7 @@ test('directory coalesces requests, caches, and refreshes after expiry', async (
  await service.directory(); assert.equal(calls,1);
  time = 300001; await service.directory(); assert.equal(calls,2);
 });
-test('catalog access reports blocked separately from reachable but unsupported', async () => {
+test('catalog access reports blocked separately from reachable', async () => {
  const service = createHendersonService(async url => {
   if (url.includes('bid.')) {const error = new Error('Network blocked'); error.code='NETWORK_BLOCKED'; throw error;}
   return fixture;
@@ -36,7 +36,7 @@ test('catalog access reports blocked separately from reachable but unsupported',
  assert.equal(result.status,'network_blocked'); assert.equal(result.lots,undefined);
  await assert.rejects(service.catalog('9999'), /Select an auction/);
  const reachable = createHendersonService(async url => url.includes('bid.')?'<html>Catalog app</html>':fixture);
- assert.equal((await reachable.catalog('172480')).status,'needs_adapter');
+ assert.equal((await reachable.catalog('172480')).status,'reachable');
 });
 test('source failure is not cached as a successful response', async () => {
  let attempt=0;

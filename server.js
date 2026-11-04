@@ -2,6 +2,7 @@ import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
 import {createHendersonService} from './henderson.js';
+import {createCatalogImporter} from './catalog.js';
 
 const routes = {'/': 'index.html', '/app.js': 'app.js', '/model.js': 'model.js', '/style.css': 'style.css'};
 const types = {html: 'text/html', js: 'text/javascript', css: 'text/css'};
@@ -9,7 +10,7 @@ const securityHeaders = {
   'X-Content-Type-Options': 'nosniff',
   'Content-Security-Policy': "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
 };
-export function createApp(service = createHendersonService()) {
+export function createApp(service = createHendersonService(), importCatalog = createCatalogImporter()) {
   return http.createServer(async (req, res) => {
     const path = new URL(req.url, 'http://localhost').pathname;
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -22,6 +23,11 @@ export function createApp(service = createHendersonService()) {
     };
     if (path === '/api/henderson/auctions') {
       try { return json(200, await service.directory()); }
+      catch (error) { return json(502, {error: error.message}); }
+    }
+    const lotRoute = path.match(/^\/api\/henderson\/auctions\/(\d{1,10})\/lots$/);
+    if (lotRoute) {
+      try { return json(200, await importCatalog('https://bid.hendersonauctions.com/ui/auctions/'+lotRoute[1])); }
       catch (error) { return json(502, {error: error.message}); }
     }
     const catalog = path.match(/^\/api\/henderson\/auctions\/(\d+)\/catalog$/);

@@ -9,7 +9,7 @@ export function analyze(lot,s){
  const channel=channels[0].net>=best.net*.9?channels[0]:best;
  const multiplier=(1+s.premium/100)*(1+s.tax/100);
  const maxBid=Math.max(0,Math.min(channel.net*(1-s.target/100),s.budget)-lot.transport-lot.repair)/multiplier;
- return {acquisition,channels,channel,maxBid,withinBudget:acquisition<=s.budget,evidence:lot.comps>=3?'Supported':lot.comps>0?'Limited':'Unverified'};
+ return {hasValuation:lot.local>0||(lot.shippable&&lot.shipped>0),acquisition,channels,channel,maxBid,withinBudget:acquisition<=s.budget,evidence:lot.comps>=3?'Supported':lot.comps>0?'Limited':'Unverified'};
 }
 export function validateLot(x){
  if(!x||typeof x.title!=='string'||!x.title.trim()||x.title.length>200)throw Error('Every lot needs a title of 1–200 characters.');
@@ -27,3 +27,25 @@ export const examples=[
  {id:'demo5',title:'Vintage stereo receiver',category:'Electronics',bid:120,local:290,shipped:450,transport:20,repair:40,shipping:45,comps:0,demand:'Medium',shippable:true,icon:'▦',notes:'Illustrative only. Test all inputs and confirm exact model.'},
  {id:'demo6',title:'Zero-turn riding mower',category:'Equipment',bid:1700,local:2900,shipped:0,transport:180,repair:250,shipping:0,comps:0,demand:'Medium',shippable:false,icon:'▧',notes:'Illustrative only. Inspect deck, hours, hydraulics, and engine.'}
 ].map(x=>({...x,demo:true,url:''}));
+
+// A research triage rule based on title keywords, not a measured sale probability.
+export function researchFit(title) {
+ if (/parts|repairs|no title|salvage/i.test(title)) return {score:0,label:'Inspect first',category:'Condition risk',reason:'Title flags parts/repairs or missing ownership documents.'};
+ if (/excavator|dozer|dump truck|rotary mixer|crawler|off-highway|scraper|new holland|skid steer|compactor/i.test(title)) return {score:1,label:'Budget caution',category:'Heavy equipment',reason:'Heavy equipment can require substantial capital and transport. A low opening bid is not its likely final cost.'};
+ if (/dewalt|milwaukee|blue point|ingersoll|tool|cord|charger|screwdriv|hole saw|jumper cable|light|packout/i.test(title)) return {score:3,label:'Research first',category:'Tools & accessories',reason:'Title suggests tools or accessories that may fit your smaller-item workflow. Verify model, completeness, condition, and sold comparisons.'};
+ return {score:2,label:'Review locally',category:'Other',reason:'Check local buyer demand, collection logistics, and exact item condition before estimating resale.'};
+}
+export function mergeCatalogLots(existing, catalog) {
+ const byUrl = new Map(existing.filter(l=>l.url).map(l=>[l.url,l]));
+ let added=0,updated=0;
+ const result=[...existing];
+ for (const source of catalog.lots) {
+  const metadata={auctionId:catalog.auctionId,sourceId:source.sourceId,lotNumber:source.lotNumber,sourceAmount:source.sourceAmount,sourcePriceKind:source.sourcePriceKind,sourceFetchedAt:catalog.fetchedAt,auctionStartDate:catalog.startDate};
+  const previous=byUrl.get(source.url);
+  if(previous){Object.assign(previous,metadata);updated++;continue;}
+  const fit=researchFit(source.title);
+  const lot={...metadata,id:'henderson-'+catalog.auctionId+'-'+source.sourceId,title:source.title,url:source.url,category:fit.category,bid:source.sourceAmount??0,local:0,shipped:0,transport:0,repair:0,shipping:0,comps:0,demand:'Unknown',shippable:false,demo:false,notes:'Imported from '+catalog.title+'. Costs and resale value need research. '+fit.reason};
+  result.push(lot);byUrl.set(lot.url,lot);added++;
+ }
+ return {lots:result,added,updated};
+}

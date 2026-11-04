@@ -93,7 +93,7 @@ export function createHendersonService(fetcher = fetchPage, clock = () => Date.n
     let data;
     try {
       await fetcher(auction.catalogUrl);
-      data = {status: 'needs_adapter', message: 'Catalog page is reachable. Automatic lot extraction is not configured yet; open the source catalog to research items.', catalogUrl: auction.catalogUrl};
+      data = {status: 'reachable', message: 'Catalog page is reachable. Use Analyze lots to import its public items.', catalogUrl: auction.catalogUrl};
     } catch (error) {
       data = {status: error.code === 'NETWORK_BLOCKED' ? 'network_blocked' : 'unavailable', message: error.message, catalogUrl: auction.catalogUrl};
     }
